@@ -1,17 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { FONT } from "@/lib/typography";
 import { X, Check, Flame } from "lucide-react";
 import { motion } from "motion/react";
 
 import { VISIBLE_GAMES } from "@/games/registry";
-import type { GameResult } from "@/games/types";
-
-const BEST_STREAK = 18;
-const TOTAL_PLAYED = 243;
-const WIN_RATE = 94;
-const AVG_GUESS = 3.4;
-const VERBUM_DISTRIBUTION = [2, 4, 9, 6, 3, 1];
+import type { GameId, GameResult } from "@/games/types";
+import {
+  getVerbumAvgGuess,
+  getPitchAvgGuess,
+  getContextAvgGuess,
+  getGameWinRate,
+  getWinRate,
+  loadPlayerStats,
+} from "@/lib/player-stats";
 
 const GAME_META = VISIBLE_GAMES.map((g) => ({
   id: g.id,
@@ -122,11 +125,24 @@ function DistBar({
 }
 
 export function StatsModal({ streak, played, results, onClose }: StatsModalProps) {
+  const stats = loadPlayerStats();
+  const [activeTab, setActiveTab] = useState<GameId>("verbum");
+
+  const totalGames = stats.gamesWon + stats.gamesLost;
+
+  // Verbum stats
   const verbumLabel = results.verbum?.label ?? "";
   const verbumGuessMatch = verbumLabel.match(/^(\d+)\s*\//);
   const verbumGuessIndex = verbumGuessMatch ? parseInt(verbumGuessMatch[1]) - 1 : null;
   const verbumWon = verbumGuessIndex !== null;
-  const distMax = Math.max(...VERBUM_DISTRIBUTION);
+  const verbumDistMax = Math.max(...stats.verbumDistribution, 1);
+
+  // Pitch stats
+  const pitchLabel = results.pitch?.label ?? "";
+  const pitchGuessMatch = pitchLabel.match(/^(\d+)\s*\//);
+  const pitchGuessIndex = pitchGuessMatch ? parseInt(pitchGuessMatch[1]) - 1 : null;
+  const pitchWon = pitchGuessIndex !== null;
+  const pitchDistMax = Math.max(...stats.pitchDistribution, 1);
 
   return (
     <motion.div
@@ -182,7 +198,7 @@ export function StatsModal({ streak, played, results, onClose }: StatsModalProps
           </button>
         </div>
 
-        <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: "24px" }}>
+        <div style={{ padding: "24px 20px", display: "flex", flexDirection: "column", gap: "20px" }}>
           <div style={{ display: "flex", gap: "0" }}>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "flex-end", gap: "8px", marginBottom: "5px" }}>
@@ -233,7 +249,7 @@ export function StatsModal({ streak, played, results, onClose }: StatsModalProps
                     lineHeight: 0.9,
                   }}
                 >
-                  {BEST_STREAK}
+                  {stats.bestStreak}
                 </span>
               </div>
               <span
@@ -263,7 +279,7 @@ export function StatsModal({ streak, played, results, onClose }: StatsModalProps
             >
               TODAY · {played.size} / {VISIBLE_GAMES.length}
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "4px" }}>
               {GAME_META.map((game) => {
                 const done = played.has(game.id);
                 const result = results[game.id];
@@ -314,39 +330,181 @@ export function StatsModal({ streak, played, results, onClose }: StatsModalProps
 
           <Rule />
 
+          {/* Game Selection Tabs */}
+          <div
+            style={{
+              display: "flex",
+              border: "1px solid rgba(240,235,225,0.08)",
+              borderRadius: "2px",
+              padding: "2px",
+              backgroundColor: "rgba(240,235,225,0.02)",
+            }}
+          >
+            {VISIBLE_GAMES.map((game) => {
+              const active = activeTab === game.id;
+              return (
+                <button
+                  key={game.id}
+                  onClick={() => setActiveTab(game.id)}
+                  style={{
+                    flex: 1,
+                    padding: "6px 0",
+                    backgroundColor: active ? "rgba(240,235,225,0.06)" : "transparent",
+                    border: "none",
+                    borderRadius: "1px",
+                    cursor: "pointer",
+                    fontFamily: FONT.mono,
+                    fontSize: "0.58rem",
+                    fontWeight: active ? 700 : 400,
+                    color: active ? "#F0EBE1" : "rgba(240,235,225,0.35)",
+                    letterSpacing: "0.06em",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {game.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* VERBUM Tab Content */}
+          {activeTab === "verbum" && (
+            <>
+              <div>
+                <p
+                  style={{
+                    fontFamily: FONT.mono,
+                    fontSize: "0.62rem",
+                    color: "rgba(240,235,225,0.32)",
+                    letterSpacing: "0.12em",
+                    marginBottom: "10px",
+                  }}
+                >
+                  VERBUM · GUESS DISTRIBUTION
+                </p>
+                {stats.verbumWins + stats.verbumLosses > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    {stats.verbumDistribution.map((count, i) => (
+                      <DistBar
+                        key={i}
+                        index={i}
+                        count={count}
+                        max={verbumDistMax}
+                        highlight={verbumWon && verbumGuessIndex === i}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontFamily: FONT.mono, fontSize: "0.6rem", color: "rgba(240,235,225,0.22)", textAlign: "center", margin: "16px 0" }}>
+                    No stats recorded yet.
+                  </p>
+                )}
+              </div>
+
+              <Rule />
+
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <StatBlock value={stats.verbumWins + stats.verbumLosses} label="PLAYED" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getGameWinRate(stats.verbumWins, stats.verbumLosses)} label="WIN RATE" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getVerbumAvgGuess(stats)} label="AVG GUESS" />
+              </div>
+            </>
+          )}
+
+          {/* PITCH Tab Content */}
+          {activeTab === "pitch" && (
+            <>
+              <div>
+                <p
+                  style={{
+                    fontFamily: FONT.mono,
+                    fontSize: "0.62rem",
+                    color: "rgba(240,235,225,0.32)",
+                    letterSpacing: "0.12em",
+                    marginBottom: "10px",
+                  }}
+                >
+                  PITCH · GUESS DISTRIBUTION
+                </p>
+                {stats.pitchWins + stats.pitchLosses > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                    {stats.pitchDistribution.map((count, i) => (
+                      <DistBar
+                        key={i}
+                        index={i}
+                        count={count}
+                        max={pitchDistMax}
+                        highlight={pitchWon && pitchGuessIndex === i}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontFamily: FONT.mono, fontSize: "0.6rem", color: "rgba(240,235,225,0.22)", textAlign: "center", margin: "16px 0" }}>
+                    No stats recorded yet.
+                  </p>
+                )}
+              </div>
+
+              <Rule />
+
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <StatBlock value={stats.pitchWins + stats.pitchLosses} label="PLAYED" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getGameWinRate(stats.pitchWins, stats.pitchLosses)} label="WIN RATE" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getPitchAvgGuess(stats)} label="AVG GUESS" />
+              </div>
+            </>
+          )}
+
+          {/* RATIO Tab Content */}
+          {activeTab === "ratio" && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <StatBlock value={stats.ratioPlays} label="PLAYED" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={stats.ratioWins} label="PERFECT RUNS" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={stats.ratioHighScore} label="HIGH SCORE" />
+              </div>
+            </>
+          )}
+
+          {/* CONTEXT Tab Content */}
+          {activeTab === "context" && (
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+                <StatBlock value={stats.contextWins + stats.contextLosses} label="PLAYED" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getGameWinRate(stats.contextWins, stats.contextLosses)} label="WIN RATE" />
+                <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+                <StatBlock value={getContextAvgGuess(stats)} label="AVG GUESSES" />
+              </div>
+            </>
+          )}
+
+          <Rule />
+
+          {/* Combined Stats Summary */}
           <div>
             <p
               style={{
                 fontFamily: FONT.mono,
                 fontSize: "0.62rem",
-                color: "rgba(240,235,225,0.32)",
+                color: "rgba(240,235,225,0.22)",
                 letterSpacing: "0.12em",
                 marginBottom: "10px",
               }}
             >
-              VERBUM · GUESS DISTRIBUTION
+              OVERALL SUMMARY
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-              {VERBUM_DISTRIBUTION.map((count, i) => (
-                <DistBar
-                  key={i}
-                  index={i}
-                  count={count}
-                  max={distMax}
-                  highlight={verbumWon && verbumGuessIndex === i}
-                />
-              ))}
+            <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+              <StatBlock value={totalGames} label="TOTAL PLAYED" />
+              <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
+              <StatBlock value={getWinRate(stats)} label="TOTAL WIN RATE" />
             </div>
-          </div>
-
-          <Rule />
-
-          <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-            <StatBlock value={TOTAL_PLAYED} label="PLAYED" />
-            <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
-            <StatBlock value={`${WIN_RATE}%`} label="WIN RATE" />
-            <div style={{ width: "1px", height: "34px", backgroundColor: "rgba(240,235,225,0.08)", flexShrink: 0 }} />
-            <StatBlock value={AVG_GUESS} label="AVG GUESS" />
           </div>
         </div>
       </motion.div>
