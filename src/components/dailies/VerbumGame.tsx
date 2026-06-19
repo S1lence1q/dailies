@@ -154,9 +154,9 @@ function Tile({
     >
       <span
         style={{
-          fontFamily: FONT.mono,
-          fontSize: "1.35rem",
-          fontWeight: 500,
+          fontFamily: FONT.sans,
+          fontSize: "1.45rem",
+          fontWeight: 700,
           color: FG,
           lineHeight: 1,
           userSelect: "none",
@@ -192,9 +192,9 @@ function Key({
         backgroundColor: bg,
         border: "none",
         borderRadius: "2px",
-        fontFamily: FONT.mono,
-        fontSize: wide ? "0.75rem" : "0.82rem",
-        fontWeight: 500,
+        fontFamily: FONT.sans,
+        fontSize: wide ? "0.75rem" : "0.95rem",
+        fontWeight: 700,
         color: FG,
         opacity: state === "absent" ? 0.28 : 1,
         cursor: "pointer",
