@@ -1,4 +1,5 @@
 import type { ContentLocale } from "@/games/types";
+import { getDayIndex, getPuzzleNumber, getTodayKey } from "@/lib/daily";
 
 export interface PitchTrack {
   id: number;
@@ -82,21 +83,12 @@ export const PITCH_TRACKS: PitchTrack[] = [
   },
 ];
 
-export function getTodayKey(): string {
-  return new Date().toISOString().split("T")[0];
-}
+export { getTodayKey };
 
 export function getPitchTrackForDate(date = getTodayKey()): PitchTrack {
-  const start = new Date("2024-01-01").getTime();
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const dayIndex = Math.floor((d.getTime() - start) / 86400000);
-  return PITCH_TRACKS[dayIndex % PITCH_TRACKS.length];
+  return PITCH_TRACKS[getDayIndex(date) % PITCH_TRACKS.length];
 }
 
 export function getPitchPuzzleNumber(date = getTodayKey()): number {
-  const start = new Date("2024-01-01").getTime();
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Math.floor((d.getTime() - start) / 86400000) + 412;
+  return getPuzzleNumber(412, date);
 }

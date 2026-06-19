@@ -3,6 +3,7 @@
 import { FONT } from "@/lib/typography";
 import { ArrowRight, Share2, Check } from "lucide-react";
 import type { GameDefinition, GameResult } from "@/games/types";
+import { getCoverHint, getCoverLabel } from "@/games/registry";
 
 export interface CoverProps {
   game: GameDefinition;
@@ -62,7 +63,9 @@ const PITCH_BARS = [
 ];
 
 export function GameCover({ game, played, result, onPlay, onShare }: CoverProps) {
-  const { id, bg, fg, accent, gridArea, name, coverLabel, coverHint, tagline } = game;
+  const { id, bg, fg, accent, gridArea, name, tagline } = game;
+  const coverLabel = getCoverLabel(game);
+  const coverHint = getCoverHint(game);
   const filter = played ? "brightness(0.88)" : undefined;
   const areaClass = id === "verbum" ? "cover-verbum" : id === "context" ? "cover-context" : undefined;
 

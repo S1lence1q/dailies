@@ -1,5 +1,5 @@
 import type { GameId } from "@/games/types";
-import { getTodayKey } from "@/games/content/pitch-tracks";
+import { getTodayKey } from "@/lib/daily";
 
 function introKey(gameId: GameId): string {
   return `dailies_intro_${gameId}_${getTodayKey()}`;

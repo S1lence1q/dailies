@@ -17,6 +17,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { audioFX } from "@/lib/audio-fx";
+import { getDayIndex, getTodayKey } from "@/lib/daily";
 
 // ── Word list ─────────────────────────────────────────────────────────────────
 
@@ -64,16 +65,8 @@ type SavedGame = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getTodayKey() {
-  return new Date().toISOString().split("T")[0];
-}
-
 function getTargetWord(): string {
-  const start = new Date("2024-01-01").getTime();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayIndex = Math.floor((today.getTime() - start) / 86400000);
-  return WORD_LIST[dayIndex % WORD_LIST.length];
+  return WORD_LIST[getDayIndex() % WORD_LIST.length];
 }
 
 function evaluateGuess(guess: string, target: string): LetterState[] {

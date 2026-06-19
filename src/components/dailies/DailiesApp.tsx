@@ -15,6 +15,7 @@ import {
   VISIBLE_GAMES,
   EDITOR_NOTES,
   getGame,
+  getGameNumber,
   getGridAreas,
   getGridRows,
   getGridColumns,
@@ -26,10 +27,6 @@ const TODAY = new Date().toISOString().split("T")[0];
 const PLAYED_KEY = `dailies_played_${TODAY}`;
 const STREAK_KEY = "dailies_streak";
 const VISIBLE_COUNT = VISIBLE_GAMES.length;
-
-const DEMO_RESULTS: Record<string, GameResult> = {
-  pitch: { label: "3rd try", sub: "Streak 14" },
-};
 
 function useCountdown() {
   const [display, setDisplay] = useState("--:--:--");
@@ -116,18 +113,6 @@ export function DailiesApp() {
   const featured = getGame("verbum")!;
 
   useEffect(() => {
-    if (!localStorage.getItem(STREAK_KEY)) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      localStorage.setItem(
-        STREAK_KEY,
-        JSON.stringify({
-          count: 12,
-          lastPlayed: yesterday.toISOString().split("T")[0],
-        }),
-      );
-    }
-
     try {
       const raw = localStorage.getItem(STREAK_KEY);
       if (raw) {
@@ -146,9 +131,6 @@ export function DailiesApp() {
         const { played: savedPlayed, results: savedResults } = JSON.parse(raw);
         setPlayed(new Set(savedPlayed));
         setResults(savedResults);
-      } else {
-        setPlayed(new Set(["pitch"]));
-        setResults(DEMO_RESULTS);
       }
     } catch {}
   }, []);
@@ -238,7 +220,7 @@ export function DailiesApp() {
             <GameModal
               key={activeGame}
               name={game.name}
-              number={game.number}
+              number={getGameNumber(game)}
               genre={game.genre}
               gameId={game.id}
               bg={game.bg}
@@ -341,7 +323,7 @@ export function DailiesApp() {
               className="text-xs tracking-widest"
               style={{ color: "rgba(213,234,216,0.28)", fontFamily: FONT.mono }}
             >
-              NO. {featured.number}
+              NO. {getGameNumber(featured)}
             </span>
             {played.has("verbum") && (
               <div className="flex items-center gap-1.5">

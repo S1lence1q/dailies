@@ -1,4 +1,5 @@
-import type { GameDefinition } from "./types";
+import type { GameDefinition, GameId } from "./types";
+import { getPuzzleNumber } from "@/lib/daily";
 
 export const GAMES: GameDefinition[] = [
   {
@@ -10,7 +11,6 @@ export const GAMES: GameDefinition[] = [
     visible: true,
     tagline: "Five letters. Six tries. One word — reset at midnight.",
     gridArea: "verbum",
-    coverLabel: "NO. 847",
     coverHint: "WORD · ~3 MIN",
     bg: "#1B3426",
     fg: "#D5EAD8",
@@ -26,7 +26,6 @@ export const GAMES: GameDefinition[] = [
     tagline: "Guess the song from a short clip. Each skip reveals more.",
     gridArea: "pitch",
     coverLabel: "MUSIC",
-    coverHint: "NO. 412",
     bg: "#101928",
     fg: "#B5C8E2",
     accent: "#4A6EA8",
@@ -40,7 +39,6 @@ export const GAMES: GameDefinition[] = [
     visible: true,
     tagline: "Higher or lower — absurd comparisons, one wrong ends the run.",
     gridArea: "ratio",
-    coverLabel: "NO. 203",
     coverHint: "Compare · Higher or lower",
     bg: "#B84028",
     fg: "#F4E0D5",
@@ -57,7 +55,6 @@ export const GAMES: GameDefinition[] = [
     comingSoonTagline:
       "Every word you guess reveals how close you are. Find the hidden word by navigating meaning.",
     gridArea: "context",
-    coverLabel: "LANGUAGE · NO. 631",
     bg: "#1E1228",
     fg: "#CDBDE0",
     accent: "#6A4A88",
@@ -101,6 +98,42 @@ export const HIDDEN_GAMES = GAMES.filter((g) => !g.visible);
 
 export function getGame(id: string): GameDefinition | undefined {
   return GAMES.find((g) => g.id === id);
+}
+
+/** Daily puzzle number — increments from each game's launch base */
+export function getGameNumber(game: GameDefinition | GameId): number {
+  const def = typeof game === "string" ? getGame(game) : game;
+  if (!def) return 0;
+  return getPuzzleNumber(def.number);
+}
+
+export function getCoverLabel(game: GameDefinition): string {
+  const n = getGameNumber(game);
+  switch (game.id) {
+    case "verbum":
+    case "ratio":
+      return `NO. ${n}`;
+    case "pitch":
+      return "MUSIC";
+    case "context":
+      return `LANGUAGE · NO. ${n}`;
+    default:
+      return game.coverLabel ?? game.name;
+  }
+}
+
+export function getCoverHint(game: GameDefinition): string | undefined {
+  const n = getGameNumber(game);
+  switch (game.id) {
+    case "verbum":
+      return "WORD · ~3 MIN";
+    case "pitch":
+      return `NO. ${n}`;
+    case "ratio":
+      return "Compare · Higher or lower";
+    default:
+      return game.coverHint;
+  }
 }
 
 export const EDITOR_NOTES = [
