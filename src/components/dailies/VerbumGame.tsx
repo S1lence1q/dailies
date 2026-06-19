@@ -154,7 +154,7 @@ function Tile({
     >
       <span
         style={{
-          fontFamily: FONT.sans,
+          fontFamily: FONT.spaceGrotesk,
           fontSize: "1.45rem",
           fontWeight: 700,
           color: FG,
@@ -192,7 +192,7 @@ function Key({
         backgroundColor: bg,
         border: "none",
         borderRadius: "2px",
-        fontFamily: FONT.sans,
+        fontFamily: FONT.spaceGrotesk,
         fontSize: wide ? "0.75rem" : "0.95rem",
         fontWeight: 700,
         color: FG,

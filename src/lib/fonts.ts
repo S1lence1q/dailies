@@ -1,4 +1,4 @@
-import { DM_Mono, Fraunces, Plus_Jakarta_Sans } from "next/font/google";
+import { DM_Mono, Fraunces, Plus_Jakarta_Sans, Space_Grotesk, Sora } from "next/font/google";
 
 export const fraunces = Fraunces({
   subsets: ["latin"],
@@ -23,8 +23,24 @@ export const dmMono = DM_Mono({
   weight: ["400", "500"],
 });
 
+export const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+export const sora = Sora({
+  subsets: ["latin"],
+  variable: "--font-sora",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
 export const fontClassNames = [
   fraunces.variable,
   plusJakartaSans.variable,
   dmMono.variable,
+  spaceGrotesk.variable,
+  sora.variable,
 ].join(" ");
