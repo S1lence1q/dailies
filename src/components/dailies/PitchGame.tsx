@@ -20,7 +20,7 @@ const GREEN  = "#3D9B5C";
 const ARTIST = "#B8910A";
 
 const CLIP_START  = 0.1;
-const REVEAL_SECS = [1, 2, 4, 7, 11, 16];
+const REVEAL_SECS = [0.1, 0.5, 2, 8, 15, 15];
 const MAX_ROUNDS  = 6;
 
 type Phase       = "loading" | "active" | "done";
@@ -90,10 +90,13 @@ function PitchWaveform({ isPlaying }: { isPlaying: boolean }) {
       style={{
         display: "flex",
         alignItems: "flex-end",
-        gap: "1px",
-        height: isPlaying ? "52px" : "36px",
+        gap: "4px",
+        height: isPlaying ? "60px" : "48px",
         width: "100%",
-        transition: "height 0.3s ease",
+        justifyContent: "center",
+        borderBottom: "1px solid rgba(181, 200, 226, 0.08)",
+        paddingBottom: "8px",
+        transition: "height 0.2s ease-in-out",
       }}
     >
       {PITCH_BARS.map((h, i) => (
@@ -101,15 +104,105 @@ function PitchWaveform({ isPlaying }: { isPlaying: boolean }) {
           key={i}
           className={isPlaying ? "pitch-bar pitch-bar--live" : "pitch-bar"}
           style={{
-            width: "3px",
+            width: "6px",
             flexShrink: 0,
             height: `${h}%`,
-            backgroundColor: ACCENT,
-            opacity: isPlaying ? 0.9 : 0.35,
-            ["--pitch-d" as string]: `${(i % 7) * 0.08}s`,
+            borderRadius: "1px",
+            backgroundColor: FG,
+            opacity: isPlaying ? 0.8 : 0.15,
+            transition: "all 0.2s ease",
+            ["--pitch-d" as string]: `${(i % 6) * 0.08}s`,
           }}
         />
       ))}
+    </div>
+  );
+}
+
+function SegmentedProgressBar({
+  round,
+  playProgress,
+  isPlaying,
+  hasPlayed,
+  secs,
+}: {
+  round: number;
+  playProgress: number;
+  isPlaying: boolean;
+  hasPlayed: boolean;
+  secs: number;
+}) {
+  const durations = [0.1, 0.4, 1.5, 6.0, 7.0];
+  const starts = [0, 0.1, 0.5, 2.0, 8.0];
+  const activeTime = isPlaying ? (playProgress / 100) * secs : 0;
+
+  return (
+    <div style={{ width: "100%", maxWidth: 500, margin: "16px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", alignItems: "flex-end" }}>
+        <span style={{ fontFamily: FONT.mono, fontSize: "0.6rem", color: DIM }}>
+          {isPlaying ? `PLAYING: ${activeTime.toFixed(1)}s` : `LIMIT: ${secs}s`}
+        </span>
+        <span style={{ fontFamily: FONT.mono, fontSize: "0.6rem", color: FG, letterSpacing: "0.05em" }}>
+          15 seconds
+        </span>
+      </div>
+
+      <div 
+        style={{ 
+          display: "flex", 
+          gap: "2px", 
+          height: "12px", 
+          width: "100%", 
+          backgroundColor: "rgba(181, 200, 226, 0.03)",
+          border: "1px solid rgba(181, 200, 226, 0.12)",
+          borderRadius: "2px",
+          boxSizing: "border-box",
+        }}
+      >
+        {durations.map((dur, i) => {
+          const isUnlocked = starts[i] < secs;
+          const start = starts[i];
+          const end = start + dur;
+
+          let fillPercent = 0;
+          if (isPlaying) {
+            if (activeTime >= end) {
+              fillPercent = 100;
+            } else if (activeTime <= start) {
+              fillPercent = 0;
+            } else {
+              fillPercent = ((activeTime - start) / dur) * 100;
+            }
+          }
+
+          return (
+            <div
+              key={i}
+              style={{
+                flex: dur,
+                backgroundColor: isUnlocked 
+                  ? "rgba(181, 200, 226, 0.08)" 
+                  : "rgba(181, 200, 226, 0.02)",
+                position: "relative",
+                height: "100%",
+              }}
+            >
+              {isUnlocked && fillPercent > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${fillPercent}%`,
+                    backgroundColor: GREEN,
+                  }}
+                />
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -145,6 +238,7 @@ function Suggestions({
         borderTop: "none",
         maxHeight: "220px",
         overflowY: "auto",
+        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.5)",
       }}
     >
       {items.map((s, i) => (
@@ -556,123 +650,170 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
           alignItems: "center",
           justifyContent: "center",
           padding: "0 24px",
-          gap: 20,
+          gap: 16,
           minHeight: 0,
         }}
       >
         {!done ? (
           <>
-            <div style={{ textAlign: "center" }}>
-              <AnimatePresence mode="wait">
-                <motion.span
-                  key={`s-${round}`}
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                  style={{
-                    display: "block",
-                    fontFamily: FONT.fraunces,
-                    fontSize: "clamp(5.5rem, 18vw, 8rem)",
-                    fontWeight: 900,
-                    fontStyle: "italic",
-                    color: isPlaying ? "#7AADDA" : FG,
-                    lineHeight: 1,
-                    letterSpacing: "-0.04em",
-                    transition: "color 0.3s",
-                  }}
-                >
-                  {secs}
-                </motion.span>
-              </AnimatePresence>
-              <span
-                style={{
-                  fontFamily: FONT.mono,
-                  fontSize: "0.6rem",
-                  letterSpacing: "0.14em",
-                  color: DIM,
-                  display: "block",
-                  marginTop: 4,
-                }}
-              >
-                {isPlaying ? "PLAYING" : "SECONDS"}
-              </span>
+            {/* LCD Waveform */}
+            <div style={{ width: "100%", maxWidth: 500, margin: "0 auto" }}>
+              <PitchWaveform isPlaying={isPlaying} />
             </div>
 
-            <button
-              type="button"
-              onClick={playClip}
-              disabled={isPlaying || !track?.previewUrl}
+            {/* Stacked Attempt Rows */}
+            <div
               style={{
-                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
                 width: "100%",
-                maxWidth: 320,
-                height: 46,
-                border: `1px solid ${isPlaying ? ACCENT : "rgba(74,110,168,0.3)"}`,
-                backgroundColor: "transparent",
-                borderRadius: 2,
-                overflow: "hidden",
-                cursor: isPlaying || !track?.previewUrl ? "default" : "pointer",
-                opacity: track?.previewUrl ? 1 : 0.4,
-                transition: "border-color 0.2s",
+                maxWidth: 500,
+                margin: "12px auto",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  width: `${playProgress}%`,
-                  backgroundColor: "rgba(74,110,168,0.18)",
-                }}
-              />
-              <span
-                style={{
-                  position: "relative",
-                  fontFamily: FONT.mono,
-                  fontSize: "0.72rem",
-                  letterSpacing: "0.1em",
-                  color: isPlaying ? ACCENT : FG,
-                  transition: "color 0.2s",
-                }}
-              >
-                {isPlaying
-                  ? "▶  PLAYING"
-                  : hasPlayed
-                    ? `▶  PLAY AGAIN  ·  ${secs}s`
-                    : `▶  PLAY  ·  ${secs}s`}
-              </span>
-            </button>
+              {Array.from({ length: MAX_ROUNDS }, (_, i) => {
+                const a = attempts[i];
+                const isActive = i === attempts.length;
+                const isLocked = i > attempts.length;
 
-            {attempts.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", maxWidth: 320 }}>
-                {attempts.map((a, i) => {
-                  const chip = chipStyle(a);
+                if (a) {
+                  const isCorrect = a.result === "correct";
+                  const isArtist = a.result === "artist";
+                  const isSkipped = a.result === "skipped" || a.skipped;
+
+                  let rowBg = "rgba(181, 200, 226, 0.02)";
+                  let rowBorder = "1px solid rgba(181, 200, 226, 0.08)";
+                  let rowColor = "rgba(181, 200, 226, 0.4)";
+                  let decoration = "none";
+
+                  if (isCorrect) {
+                    rowBg = "rgba(61, 155, 92, 0.06)";
+                    rowBorder = `1px solid ${GREEN}`;
+                    rowColor = GREEN;
+                  } else if (isArtist) {
+                    rowBg = "rgba(184, 145, 10, 0.06)";
+                    rowBorder = `1px solid ${ARTIST}`;
+                    rowColor = ARTIST;
+                  } else if (isSkipped) {
+                    rowBg = "rgba(181, 200, 226, 0.03)";
+                    rowBorder = "1px solid rgba(181, 200, 226, 0.06)";
+                    rowColor = "rgba(181, 200, 226, 0.3)";
+                  } else {
+                    decoration = "line-through";
+                  }
+
                   return (
                     <div
                       key={i}
                       style={{
-                        padding: "3px 10px",
-                        border: chip.border,
-                        borderRadius: 2,
-                        fontFamily: FONT.mono,
-                        fontSize: "0.6rem",
-                        color: chip.color,
-                        textDecoration: chip.decoration,
-                        maxWidth: 200,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        letterSpacing: "0.04em",
+                        height: "38px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "0 14px",
+                        backgroundColor: rowBg,
+                        border: rowBorder,
+                        borderRadius: "4px",
+                        fontFamily: FONT.sans,
+                        fontSize: "0.85rem",
+                        color: rowColor,
+                        boxSizing: "border-box",
                       }}
                     >
-                      {a.skipped ? "SKIPPED" : a.text}
+                      <span style={{ textDecoration: decoration, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                        {isSkipped ? "SKIPPED" : a.text}
+                      </span>
+                      <span style={{ fontFamily: FONT.mono, fontSize: "0.62rem", opacity: 0.5, marginLeft: "10px" }}>
+                        {isCorrect ? "CORRECT" : isArtist ? "ARTIST MATCH" : isSkipped ? "SKIP" : "WRONG"}
+                      </span>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                }
+
+                if (isActive) {
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        height: "38px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1px dashed rgba(74, 110, 168, 0.25)",
+                        borderRadius: "4px",
+                        backgroundColor: "rgba(74, 110, 168, 0.02)",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <span style={{ fontFamily: FONT.mono, fontSize: "0.65rem", color: "rgba(181, 200, 226, 0.2)", letterSpacing: "0.08em" }}>
+                        ROUND {i + 1}
+                      </span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      height: "38px",
+                      border: "1px solid rgba(181, 200, 226, 0.02)",
+                      borderRadius: "4px",
+                      backgroundColor: "transparent",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Segmented Progress Bar */}
+            <SegmentedProgressBar
+              round={round}
+              playProgress={playProgress}
+              isPlaying={isPlaying}
+              hasPlayed={hasPlayed}
+              secs={secs}
+            />
+
+            {/* Play/pause button — circular green tactile button */}
+            <div style={{ display: "flex", justifyContent: "center", margin: "8px 0" }}>
+              <button
+                type="button"
+                onClick={isPlaying ? stopAudio : playClip}
+                disabled={!track?.previewUrl}
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: "50%",
+                  backgroundColor: isPlaying ? "transparent" : GREEN,
+                  border: `2px solid ${GREEN}`,
+                  color: isPlaying ? GREEN : BG,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: track?.previewUrl ? "pointer" : "default",
+                  opacity: track?.previewUrl ? 1 : 0.4,
+                  transition: "all 0.15s ease-in-out",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  if (track?.previewUrl) {
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                }}
+              >
+                {isPlaying ? (
+                  <Pause size={20} fill="currentColor" />
+                ) : (
+                  <Play size={20} fill="currentColor" style={{ marginLeft: 2 }} />
+                )}
+              </button>
+            </div>
 
             {loadError && (
               <p style={{ fontFamily: FONT.mono, fontSize: "0.62rem", color: DIM, textAlign: "center" }}>
@@ -785,7 +926,7 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
       </div>
 
       {/* Bottom: input + compound action */}
-      <div style={{ flexShrink: 0, padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ flexShrink: 0, padding: "0 24px 28px", display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 500, margin: "0 auto" }}>
         <AnimatePresence mode="wait">
           {!done ? (
             <motion.div
@@ -794,7 +935,7 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}
             >
               <div ref={searchWrapRef} style={{ position: "relative" }}>
                 <input
