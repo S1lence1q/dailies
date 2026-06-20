@@ -1,6 +1,10 @@
 const EPOCH = new Date("2024-01-01").getTime();
 
 export function getTodayKey(): string {
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    const q = new URLSearchParams(window.location.search).get("date");
+    if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) return q;
+  }
   return new Date().toISOString().split("T")[0];
 }
 

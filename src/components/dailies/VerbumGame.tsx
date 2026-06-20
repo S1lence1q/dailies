@@ -14,25 +14,15 @@ import { FONT } from "@/lib/typography";
 // replace everything between "— GAME LOGIC —" and "— RENDER —".
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { audioFX } from "@/lib/audio-fx";
-import { getDayIndex, getTodayKey } from "@/lib/daily";
+import { getTodayKey } from "@/lib/daily";
+import { getOverridesForDate, pickByWord } from "@/lib/daily-content";
+import { VERBUM_WORDS } from "@/games/content/verbum-words";
+import type { GamePlayerProps } from "@/games/types";
+import { GameCompleteActions } from "./GameCompleteActions";
 
 // ── Word list ─────────────────────────────────────────────────────────────────
-
-const WORD_LIST = [
-  "CRANE", "EMBER", "STORM", "GRACE", "PLUMB",
-  "SWIRL", "CRISP", "GROVE", "HAVEN", "NOTCH",
-  "OLIVE", "RAVEN", "SCOUT", "THORN", "WEAVE",
-  "BLOOM", "FROST", "GLADE", "FLINT", "LATCH",
-  "MANOR", "PERCH", "BLAZE", "CLEFT", "DRIFT",
-  "EPOCH", "FROND", "GLOOM", "HASTE", "JEWEL",
-  "KARMA", "LEDGE", "MIRTH", "NYMPH", "VOUCH",
-  "ABODE", "BRIDE", "CHALK", "DEBUT", "ENVOY",
-  "FLAIR", "GRUEL", "HUTCH", "INTER", "JOUST",
-  "KNEEL", "LYRIC", "MULCH", "NAVEL", "OPTIC",
-];
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -66,7 +56,9 @@ type SavedGame = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getTargetWord(): string {
-  return WORD_LIST[getDayIndex() % WORD_LIST.length];
+  const date = getTodayKey();
+  const { verbum } = getOverridesForDate(date);
+  return pickByWord(VERBUM_WORDS, date, verbum);
 }
 
 function evaluateGuess(guess: string, target: string): LetterState[] {
@@ -209,14 +201,23 @@ function Key({
 export function VerbumGame({
   onComplete,
   streak,
-}: {
-  onComplete: (result: { label: string; sub: string }) => void;
-  streak: number;
-}) {
+  played,
+  onPlayNext,
+  onBackToLineup,
+}: GamePlayerProps) {
   // ── GAME LOGIC ─────────────────────────────────────────────────────────────
 
-  const target     = useMemo(getTargetWord, []);
+  const [target, setTarget] = useState(getTargetWord);
   const storageKey = `dailies_verbum_${getTodayKey()}`;
+
+  useEffect(() => {
+    fetch(`/api/daily/schedule?date=${getTodayKey()}`)
+      .then((r) => r.json())
+      .then((d: { verbum?: string }) => {
+        if (d.verbum) setTarget(d.verbum.toUpperCase());
+      })
+      .catch(() => {});
+  }, []);
 
   const loadSaved = (): SavedGame => {
     try {
@@ -296,12 +297,33 @@ export function VerbumGame({
         onComplete({
           label: `${n} / ${MAX_GUESSES}`,
           sub: n <= 2 ? "Impressive" : "Above average",
+          cover: {
+            kind: "verbum",
+            rows: next.map((g) =>
+              g.evaluation.filter(
+                (s): s is "correct" | "present" | "absent" =>
+                  s === "correct" || s === "present" || s === "absent",
+              ),
+            ),
+          },
         });
       } else if (isLost) {
         setGameOver(true);
         audioFX.playError();
         notify(target, 4000);
-        onComplete({ label: `X / ${MAX_GUESSES}`, sub: "Better luck tomorrow" });
+        onComplete({
+          label: `X / ${MAX_GUESSES}`,
+          sub: "Better luck tomorrow",
+          cover: {
+            kind: "verbum",
+            rows: next.map((g) =>
+              g.evaluation.filter(
+                (s): s is "correct" | "present" | "absent" =>
+                  s === "correct" || s === "present" || s === "absent",
+              ),
+            ),
+          },
+        });
       } else {
         audioFX.playClick();
       }
@@ -443,44 +465,45 @@ export function VerbumGame({
           ))}
         </div>
 
-        {/* Game over row */}
-        <div style={{ height: "40px", display: "flex", alignItems: "center", gap: "16px" }}>
-          {gameOver && !won && (
-            <span
-              style={{
-                fontFamily: FONT.mono,
-                fontSize: "0.72rem",
-                color: "rgba(213,234,216,0.4)",
-              }}
-            >
-              The word was{" "}
-              <span style={{ color: FG, letterSpacing: "0.1em" }}>{target}</span>
-            </span>
-          )}
-          {gameOver && (
-            <button
-              onClick={share}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "7px",
-                padding: "8px 18px",
-                backgroundColor: "#D5EAD8",
-                color: "#1B3426",
-                border: "none",
-                borderRadius: "2px",
-                fontFamily: FONT.mono,
-                fontSize: "0.72rem",
-                fontWeight: 500,
-                cursor: "pointer",
-                letterSpacing: "0.06em",
-              }}
-            >
-              <Share2 size={11} />
-              Share result
-            </button>
-          )}
-        </div>
+        {/* Game over */}
+        {gameOver && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "12px",
+              width: "100%",
+              maxWidth: "360px",
+            }}
+          >
+            {!won && (
+              <span
+                style={{
+                  fontFamily: FONT.mono,
+                  fontSize: "0.72rem",
+                  color: "rgba(213,234,216,0.4)",
+                }}
+              >
+                The word was{" "}
+                <span style={{ color: FG, letterSpacing: "0.1em" }}>{target}</span>
+              </span>
+            )}
+            <GameCompleteActions
+              gameId="verbum"
+              played={played}
+              fg={FG}
+              accent="#6BAF84"
+              shareBg="#D5EAD8"
+              shareFg="#1B3426"
+              onShare={share}
+              onPlayNext={onPlayNext}
+              onBackToLineup={onBackToLineup}
+            />
+          </div>
+        )}
+
+        {!gameOver && <div style={{ height: "40px" }} />}
 
         {/* Keyboard */}
         <div style={{ display: "flex", flexDirection: "column", gap: "5px", alignItems: "center" }}>

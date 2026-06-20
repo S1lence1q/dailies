@@ -3,6 +3,7 @@
 import { FONT } from "@/lib/typography";
 import { motion } from "motion/react";
 import type { GameStatus } from "@/games/types";
+import { GAME_RULES } from "./HowToPlay";
 
 interface GameIntroProps {
   name: string;
@@ -10,10 +11,138 @@ interface GameIntroProps {
   fg: string;
   accent: string;
   status: GameStatus;
+  gameId?: string;
+  /** First-time rules inline below tagline — one PLAY tap starts the game */
+  showRules?: boolean;
   onStart?: () => void;
 }
 
-export function GameIntro({ name, tagline, fg, accent, status, onStart }: GameIntroProps) {
+function IntroRules({
+  gameId,
+  fg,
+  accent,
+}: {
+  gameId: string;
+  fg: string;
+  accent: string;
+}) {
+  const rules = GAME_RULES[gameId];
+  if (!rules) return null;
+
+  return (
+    <motion.div
+      style={{
+        width: "100%",
+        maxWidth: "300px",
+        marginBottom: "28px",
+        textAlign: "left",
+      }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.3, duration: 0.35 }}
+    >
+      <p
+        style={{
+          fontFamily: FONT.mono,
+          fontSize: "0.58rem",
+          color: accent,
+          letterSpacing: "0.14em",
+          marginBottom: "14px",
+          opacity: 0.65,
+          textAlign: "center",
+        }}
+      >
+        HOW TO PLAY
+      </p>
+      <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {rules.steps.map((step, i) => (
+          <li
+            key={i}
+            style={{
+              display: "flex",
+              gap: "10px",
+              marginBottom: i < rules.steps.length - 1 ? "10px" : 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: FONT.mono,
+                fontSize: "0.58rem",
+                color: accent,
+                width: "12px",
+                flexShrink: 0,
+                paddingTop: "2px",
+                opacity: 0.6,
+              }}
+            >
+              {i + 1}.
+            </span>
+            <span
+              style={{
+                fontFamily: FONT.sans,
+                fontSize: "0.82rem",
+                color: fg,
+                lineHeight: 1.5,
+                opacity: 0.72,
+              }}
+            >
+              {step}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {rules.legend && (
+        <div
+          style={{
+            marginTop: "16px",
+            paddingTop: "14px",
+            borderTop: `1px solid ${accent}28`,
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {rules.legend.map((item, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  backgroundColor: item.color,
+                  borderRadius: "2px",
+                  flexShrink: 0,
+                  border: item.color.includes("rgba") ? `1px solid ${fg}20` : "none",
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: FONT.sans,
+                  fontSize: "0.72rem",
+                  color: fg,
+                  opacity: 0.55,
+                  lineHeight: 1.4,
+                }}
+              >
+                {item.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+export function GameIntro({
+  name,
+  tagline,
+  fg,
+  accent,
+  status,
+  gameId,
+  showRules,
+  onStart,
+}: GameIntroProps) {
   const isLive = status === "live";
 
   return (
@@ -26,6 +155,7 @@ export function GameIntro({ name, tagline, fg, accent, status, onStart }: GameIn
         justifyContent: "center",
         padding: "40px 32px",
         textAlign: "center",
+        overflowY: "auto",
       }}
     >
       <motion.h1
@@ -66,7 +196,7 @@ export function GameIntro({ name, tagline, fg, accent, status, onStart }: GameIn
           color: accent,
           maxWidth: "280px",
           lineHeight: 1.7,
-          marginBottom: "36px",
+          marginBottom: showRules && gameId ? "24px" : "36px",
           opacity: 0.75,
         }}
         initial={{ opacity: 0 }}
@@ -75,6 +205,10 @@ export function GameIntro({ name, tagline, fg, accent, status, onStart }: GameIn
       >
         {tagline}
       </motion.p>
+
+      {showRules && gameId && (
+        <IntroRules gameId={gameId} fg={fg} accent={accent} />
+      )}
 
       {isLive ? (
         <motion.button
@@ -89,10 +223,11 @@ export function GameIntro({ name, tagline, fg, accent, status, onStart }: GameIn
             color: fg,
             letterSpacing: "0.16em",
             cursor: "pointer",
+            flexShrink: 0,
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.35, duration: 0.4 }}
+          transition={{ delay: showRules ? 0.4 : 0.35, duration: 0.4 }}
           whileHover={{ backgroundColor: `${accent}22` }}
           whileTap={{ scale: 0.98 }}
         >

@@ -1,10 +1,11 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useCallback } from "react";
 import { ArrowLeft, HelpCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { FONT } from "@/lib/typography";
 import { HowToPlay, GAME_RULES } from "./HowToPlay";
+import type { GameId } from "@/games/types";
 
 interface GameModalProps {
   name: string;
@@ -13,7 +14,7 @@ interface GameModalProps {
   bg: string;
   fg: string;
   accent: string;
-  gameId?: string;
+  gameId?: GameId;
   /** Minimal header: back + meta only, no game title */
   compactHeader?: boolean;
   onClose: () => void;
@@ -34,6 +35,10 @@ export function GameModal({
 }: GameModalProps) {
   const [showHelp, setShowHelp] = useState(false);
   const hasRules = gameId ? Boolean(GAME_RULES[gameId]) : false;
+
+  const closeHelp = useCallback(() => {
+    setShowHelp(false);
+  }, []);
 
   return (
     <motion.div
@@ -80,17 +85,19 @@ export function GameModal({
         </button>
 
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <span
-            style={{
-              fontFamily: FONT.mono,
-              fontSize: "0.68rem",
-              color: accent,
-              letterSpacing: "0.1em",
-              opacity: 0.65,
-            }}
-          >
-            {genre.toUpperCase()} · NO. {number}
-          </span>
+          {!compactHeader && (
+            <span
+              style={{
+                fontFamily: FONT.mono,
+                fontSize: "0.68rem",
+                color: accent,
+                letterSpacing: "0.1em",
+                opacity: 0.65,
+              }}
+            >
+              {genre.toUpperCase()} · NO. {number}
+            </span>
+          )}
 
           {!compactHeader && (
             <span
@@ -140,7 +147,7 @@ export function GameModal({
           position: "relative",
         }}
       >
-        {children}
+        {!showHelp && children}
 
         <AnimatePresence>
           {showHelp && gameId && (
@@ -149,7 +156,9 @@ export function GameModal({
               gameId={gameId}
               fg={fg}
               accent={accent}
-              onClose={() => setShowHelp(false)}
+              bg={bg}
+              variant="overlay"
+              onClose={closeHelp}
             />
           )}
         </AnimatePresence>

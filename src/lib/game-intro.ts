@@ -34,6 +34,12 @@ export function hasGameProgressToday(gameId: GameId): boolean {
       }
       case "ratio":
         return Boolean(localStorage.getItem(`dailies_ratio_${key}`));
+      case "context": {
+        const raw = localStorage.getItem(`dailies_context_${key}`);
+        if (!raw) return false;
+        const saved = JSON.parse(raw) as { guesses?: unknown[]; gameOver?: boolean };
+        return Boolean(saved.guesses?.length || saved.gameOver);
+      }
       default:
         return false;
     }

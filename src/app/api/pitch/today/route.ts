@@ -1,11 +1,13 @@
 import { createRouteHandler } from "@/lib/supabase/route-handler";
+import { ensureOverridesLoaded } from "@/lib/daily-overrides-store.server";
 import { fetchItunesPreview } from "@/lib/itunes";
 import {
   getPitchPuzzleNumber,
-  getPitchTrackForDate,
 } from "@/games/content/pitch-tracks";
+import { getPitchTrackForDate } from "@/games/content/pitch-tracks.server";
 
 const GET = createRouteHandler({ auth: "none" }, async () => {
+  await ensureOverridesLoaded();
   const track = getPitchTrackForDate();
   const preview = await fetchItunesPreview(track.artist, track.title, track.itunesTrackId);
 

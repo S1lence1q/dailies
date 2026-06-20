@@ -1,0 +1,12 @@
+export const VERBUM_WORDS = [
+  "CRANE", "EMBER", "STORM", "GRACE", "PLUMB",
+  "SWIRL", "CRISP", "GROVE", "HAVEN", "NOTCH",
+  "OLIVE", "RAVEN", "SCOUT", "THORN", "WEAVE",
+  "BLOOM", "FROST", "GLADE", "FLINT", "LATCH",
+  "MANOR", "PERCH", "BLAZE", "CLEFT", "DRIFT",
+  "EPOCH", "FROND", "GLOOM", "HASTE", "JEWEL",
+  "KARMA", "LEDGE", "MIRTH", "NYMPH", "VOUCH",
+  "ABODE", "BRIDE", "CHALK", "DEBUT", "ENVOY",
+  "FLAIR", "GRUEL", "HUTCH", "INTER", "JOUST",
+  "KNEEL", "LYRIC", "MULCH", "NAVEL", "OPTIC",
+];

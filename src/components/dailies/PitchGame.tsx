@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Share2, Loader2, Play, Pause, Music } from "lucide-react";
+import { Loader2, Play, Pause, Music } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
 import { FONT } from "@/lib/typography";
@@ -9,6 +9,7 @@ import type { GamePlayerProps } from "@/games/types";
 import { evaluatePitchGuess, type SongSuggestion } from "@/lib/itunes";
 import { getTodayKey } from "@/games/content/pitch-tracks";
 import { audioFX } from "@/lib/audio-fx";
+import { GameCompleteActions } from "./GameCompleteActions";
 
 // ── Tokens (from Figma PitchGame) ─────────────────────────────────────────────
 const FG     = "#B5C8E2";
@@ -217,7 +218,7 @@ function Suggestions({
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export function PitchGame({ onComplete, streak }: GamePlayerProps) {
+export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLineup }: GamePlayerProps) {
   const storageKey = `dailies_pitch_${getTodayKey()}`;
 
   const audioRef      = useRef<HTMLAudioElement | null>(null);
@@ -378,8 +379,16 @@ export function PitchGame({ onComplete, streak }: GamePlayerProps) {
     audioFX.playError();
     setPhase("done");
     persist({ round, attempts: next, gameOver: true, won: false });
-    onComplete({ label: "X / 6", sub: "Better luck tomorrow" });
-  }, [onComplete, persist, round, stopAudio]);
+    onComplete({
+      label: "X / 6",
+      sub: "Better luck tomorrow",
+      cover: {
+        kind: "pitch",
+        blocks: next.map((a) => a.result),
+        artist: track?.displayArtist ?? track?.artist,
+      },
+    });
+  }, [onComplete, persist, round, stopAudio, track]);
 
   const finishWin = useCallback((next: Attempt[], r: number) => {
     stopAudio();
@@ -387,8 +396,16 @@ export function PitchGame({ onComplete, streak }: GamePlayerProps) {
     setWon(true);
     setPhase("done");
     persist({ round: r, attempts: next, gameOver: true, won: true });
-    onComplete({ label: `${r + 1} / 6`, sub: r <= 1 ? "Impressive" : r <= 3 ? "Nice" : "Phew" });
-  }, [onComplete, persist, stopAudio]);
+    onComplete({
+      label: `${r + 1} / 6`,
+      sub: r <= 1 ? "Impressive" : r <= 3 ? "Nice" : "Phew",
+      cover: {
+        kind: "pitch",
+        blocks: next.map((a) => a.result),
+        artist: track?.displayArtist ?? track?.artist,
+      },
+    });
+  }, [onComplete, persist, stopAudio, track]);
 
   const resolve = useCallback((text: string, result: GuessResult, skipped = false) => {
     const next = [...attempts, { text, skipped, result }];
@@ -906,34 +923,25 @@ export function PitchGame({ onComplete, streak }: GamePlayerProps) {
               </div>
             </motion.div>
           ) : (
-            <motion.button
-              key="share"
-              type="button"
-              onClick={handleShare}
+            <motion.div
+              key="complete"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              style={{
-                width: "100%",
-                height: 50,
-                backgroundColor: FG,
-                color: BG,
-                border: "none",
-                borderRadius: 2,
-                fontFamily: FONT.mono,
-                fontSize: "0.75rem",
-                fontWeight: 500,
-                letterSpacing: "0.08em",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
+              style={{ width: "100%" }}
             >
-              <Share2 size={13} />
-              Share result
-            </motion.button>
+              <GameCompleteActions
+                gameId="pitch"
+                played={played}
+                fg={FG}
+                accent={ACCENT}
+                shareBg={FG}
+                shareFg={BG}
+                onShare={handleShare}
+                onPlayNext={onPlayNext}
+                onBackToLineup={onBackToLineup}
+              />
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

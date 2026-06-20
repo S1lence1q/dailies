@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowRight, Flame, Check, Share2, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, Flame, Share2, Volume2, VolumeX } from "lucide-react";
 import { audioFX } from "@/lib/audio-fx";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
@@ -16,14 +16,22 @@ import {
   EDITOR_NOTES,
   getGame,
   getGameNumber,
+  getFirstUnplayedGame,
   getGridAreas,
   getGridRows,
   getGridColumns,
   getMobileGridAreas,
 } from "@/games/registry";
 import type { GameId, GameResult } from "@/games/types";
+import { getTodayKey } from "@/lib/daily";
+import { recordGameResult, syncBestStreak } from "@/lib/player-stats";
+import {
+  buildDailyShareText,
+  copyShareText,
+  formatDailyResultsLine,
+} from "@/lib/share";
 
-const TODAY = new Date().toISOString().split("T")[0];
+const TODAY = getTodayKey();
 const PLAYED_KEY = `dailies_played_${TODAY}`;
 const STREAK_KEY = "dailies_streak";
 const VISIBLE_COUNT = VISIBLE_GAMES.length;
@@ -79,10 +87,66 @@ function StreakCalendar({ streak }: { streak: number }) {
   );
 }
 
+function LineupProgress({
+  played,
+  nextGameId,
+}: {
+  played: Set<string>;
+  nextGameId: GameId | undefined;
+}) {
+  const visiblePlayed = VISIBLE_GAMES.filter((g) => played.has(g.id)).length;
+
+  return (
+    <motion.div
+      key={visiblePlayed}
+      initial={{ opacity: 0.6 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+      className="mb-5"
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "baseline",
+        gap: "6px 10px",
+        fontFamily: FONT.mono,
+        fontSize: "0.68rem",
+        color: "#8A7A68",
+      }}
+    >
+      <span>
+        {visiblePlayed} / {VISIBLE_COUNT} played
+      </span>
+      <span style={{ opacity: 0.35 }}>·</span>
+      <span style={{ display: "inline-flex", flexWrap: "wrap", gap: "0 6px" }}>
+        {VISIBLE_GAMES.map((game, index) => {
+          const done = played.has(game.id);
+          const isNext = game.id === nextGameId;
+          return (
+            <span key={game.id}>
+              {index > 0 && <span style={{ opacity: 0.35, marginRight: "6px" }}>·</span>}
+              <span
+                style={{
+                  opacity: done || isNext ? 1 : 0.35,
+                  fontWeight: isNext && !done ? 700 : 400,
+                  textDecoration: isNext && !done ? "underline" : "none",
+                  textUnderlineOffset: "3px",
+                }}
+              >
+                {done && "✓ "}
+                {game.name}
+              </span>
+            </span>
+          );
+        })}
+      </span>
+    </motion.div>
+  );
+}
+
 export function DailiesApp() {
   const [played, setPlayed] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, GameResult | null>>({});
-  const [streak, setStreak] = useState(12);
+  const [streak, setStreak] = useState(0);
   const [activeGame, setActive] = useState<GameId | null>(null);
   const [showStats, setShowStats] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -103,6 +167,7 @@ export function DailiesApp() {
   const countdown = useCountdown();
   const visiblePlayed = VISIBLE_GAMES.filter((g) => played.has(g.id)).length;
   const allPlayed = visiblePlayed === VISIBLE_COUNT;
+  const heroGame = getFirstUnplayedGame(played);
   const note = EDITOR_NOTES[new Date().getDay()];
   const todayLabel = new Date().toLocaleDateString("en-US", {
     month: "short",
@@ -110,7 +175,10 @@ export function DailiesApp() {
     year: "numeric",
   });
 
-  const featured = getGame("verbum")!;
+  const shareDaily = useCallback(() => {
+    copyShareText(buildDailyShareText(results, streak, todayLabel));
+    toast("Copied to clipboard", { description: "Paste anywhere to share." });
+  }, [results, streak, todayLabel]);
 
   useEffect(() => {
     try {
@@ -120,8 +188,10 @@ export function DailiesApp() {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const yStr = yesterday.toISOString().split("T")[0];
-        if (lastPlayed === TODAY || lastPlayed === yStr) setStreak(count);
-        else setStreak(0);
+        if (lastPlayed === TODAY || lastPlayed === yStr) {
+          setStreak(count);
+          syncBestStreak(count);
+        } else setStreak(0);
       }
     } catch {}
 
@@ -142,8 +212,12 @@ export function DailiesApp() {
   }, [played, results]);
 
   const handleComplete = useCallback((id: string, result: GameResult) => {
+    setResults((prev) => {
+      if (prev[id]) return prev;
+      recordGameResult(id as GameId, result);
+      return { ...prev, [id]: result };
+    });
     setPlayed((prev) => new Set([...prev, id]));
-    setResults((prev) => ({ ...prev, [id]: result }));
 
     try {
       const raw = localStorage.getItem(STREAK_KEY);
@@ -155,6 +229,7 @@ export function DailiesApp() {
         const newCount = saved?.lastPlayed === yStr ? saved.count + 1 : 1;
         localStorage.setItem(STREAK_KEY, JSON.stringify({ count: newCount, lastPlayed: TODAY }));
         setStreak(newCount);
+        syncBestStreak(newCount);
       }
     } catch {}
   }, []);
@@ -197,7 +272,23 @@ export function DailiesApp() {
           }
         }
         .games-grid > div { transition: filter 0.2s ease; }
-        .games-grid > div:hover { filter: brightness(1.07) !important; }
+        @media (hover: hover) {
+          .cover-verbum-title { transition: letter-spacing 0.2s ease; }
+          .group:hover .cover-verbum-title { letter-spacing: 0; }
+          .group:hover .cover-pitch-bars--live .cover-pitch-bar { opacity: 0.8 !important; }
+          .cover-ratio-gt { transition: color 0.2s ease; }
+          .group:hover .cover-ratio-gt { color: rgba(244,224,213,0.14); }
+          .cover-context-line {
+            display: block;
+            height: 1px;
+            width: 100%;
+            transform: scaleX(0);
+            transform-origin: left center;
+            transition: transform 0.2s ease;
+            margin-top: 6px;
+          }
+          .group:hover .cover-context-line { transform: scaleX(1); }
+        }
       `}</style>
 
       <AnimatePresence>
@@ -226,12 +317,16 @@ export function DailiesApp() {
               bg={game.bg}
               fg={game.fg}
               accent={game.accent}
+              compactHeader={game.id === "context"}
               onClose={() => setActive(null)}
             >
               <GamePlayer
                 gameId={activeGame}
                 streak={streak}
+                played={played}
                 onComplete={(r) => handleComplete(activeGame, r)}
+                onPlayNext={setActive}
+                onBackToLineup={() => setActive(null)}
               />
             </GameModal>
           );
@@ -296,108 +391,170 @@ export function DailiesApp() {
         </div>
       </header>
 
-      <motion.section
-        className="relative w-full overflow-hidden cursor-pointer group"
-        style={{ backgroundColor: featured.bg, minHeight: "clamp(380px, 52vh, 580px)" }}
-        onClick={() => setActive("verbum")}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <div
-          className="max-w-6xl mx-auto px-5 md:px-8 flex flex-col"
-          style={{
-            minHeight: "clamp(380px, 52vh, 580px)",
-            paddingTop: "3.5rem",
-            paddingBottom: "3rem",
-          }}
-        >
-          <div className="flex items-center gap-5">
-            <span
-              className="text-xs tracking-widest"
-              style={{ color: featured.accent, fontFamily: FONT.mono }}
+      <AnimatePresence mode="wait">
+        {allPlayed ? (
+          <motion.section
+            key="hero-done"
+            className="relative w-full overflow-hidden"
+            style={{ backgroundColor: "#18120E", minHeight: "clamp(320px, 44vh, 480px)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div
+              className="max-w-6xl mx-auto px-5 md:px-8 flex flex-col justify-center"
+              style={{
+                minHeight: "clamp(320px, 44vh, 480px)",
+                paddingTop: "3rem",
+                paddingBottom: "3rem",
+              }}
             >
-              TODAY&apos;S GAME
-            </span>
-            <span
-              className="text-xs tracking-widest"
-              style={{ color: "rgba(213,234,216,0.28)", fontFamily: FONT.mono }}
-            >
-              NO. {getGameNumber(featured)}
-            </span>
-            {played.has("verbum") && (
-              <div className="flex items-center gap-1.5">
-                <Check size={10} color={featured.accent} />
-                <span
-                  className="text-xs"
-                  style={{ color: featured.accent, fontFamily: FONT.mono }}
+              <p
+                className="text-xs tracking-widest mb-4"
+                style={{ fontFamily: FONT.mono, color: "rgba(240,235,225,0.4)" }}
+              >
+                ALL DONE FOR TODAY
+              </p>
+              <p
+                style={{
+                  fontFamily: FONT.mono,
+                  fontSize: "0.78rem",
+                  color: "rgba(240,235,225,0.65)",
+                  lineHeight: 1.7,
+                  marginBottom: "20px",
+                }}
+              >
+                {formatDailyResultsLine(results)}
+              </p>
+              <p
+                className="text-sm mb-6"
+                style={{ color: "rgba(240,235,225,0.45)" }}
+              >
+                New puzzles in{" "}
+                <span style={{ fontFamily: FONT.mono, color: "#F0EBE1" }}>{countdown}</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={shareDaily}
+                  className="flex items-center gap-2 px-4 py-2.5 transition-all duration-200"
+                  style={{
+                    backgroundColor: "#F0EBE1",
+                    color: "#18120E",
+                    fontFamily: FONT.mono,
+                    fontSize: "0.72rem",
+                    letterSpacing: "0.06em",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
                 >
-                  {results.verbum?.label ?? "PLAYED"}
+                  <Share2 size={12} /> Share today&apos;s dailies
+                </button>
+                <span
+                  className="flex items-center gap-1.5 text-sm"
+                  style={{ fontFamily: FONT.mono, color: "rgba(240,235,225,0.5)" }}
+                >
+                  <Flame size={13} style={{ color: "#C84820" }} />
+                  {streak}
                 </span>
               </div>
-            )}
-          </div>
-
-          <div className="flex-1 flex flex-col justify-center py-8">
-            <motion.h1
+            </div>
+          </motion.section>
+        ) : heroGame ? (
+          <motion.section
+            key={`hero-${heroGame.id}`}
+            className="relative w-full overflow-hidden cursor-pointer group"
+            style={{ backgroundColor: heroGame.bg, minHeight: "clamp(380px, 52vh, 580px)" }}
+            onClick={() => setActive(heroGame.id)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div
+              className="max-w-6xl mx-auto px-5 md:px-8 flex flex-col"
               style={{
-                fontFamily: FONT.fraunces,
-                color: featured.fg,
-                fontSize: "clamp(5rem, 15vw, 11.5rem)",
-                fontWeight: 900,
-                lineHeight: 0.88,
-                letterSpacing: "-0.03em",
-                fontStyle: "italic",
+                minHeight: "clamp(380px, 52vh, 580px)",
+                paddingTop: "3.5rem",
+                paddingBottom: "3rem",
               }}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
             >
-              {featured.name}
-            </motion.h1>
-            <motion.p
-              className="mt-5 text-sm"
-              style={{ color: featured.accent, maxWidth: "320px", lineHeight: 1.65 }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              {featured.tagline}
-            </motion.p>
-          </div>
+              <div className="flex items-center gap-5">
+                <span
+                  className="text-xs tracking-widest"
+                  style={{ color: heroGame.accent, fontFamily: FONT.mono }}
+                >
+                  UP NEXT
+                </span>
+                <span
+                  className="text-xs tracking-widest"
+                  style={{ color: `${heroGame.fg}47`, fontFamily: FONT.mono }}
+                >
+                  NO. {getGameNumber(heroGame)}
+                </span>
+                <span
+                  className="text-xs"
+                  style={{
+                    color: heroGame.accent,
+                    fontFamily: FONT.mono,
+                    opacity: 0.55,
+                  }}
+                >
+                  {visiblePlayed} / {VISIBLE_COUNT} played
+                </span>
+              </div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55, duration: 0.4 }}>
-            {played.has("verbum") ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  share("verbum", e);
-                }}
-                className="flex items-center gap-2 px-4 py-2.5 text-sm transition-all duration-200"
-                style={{
-                  border: "1px solid rgba(213,234,216,0.25)",
-                  color: featured.accent,
-                  fontFamily: FONT.mono,
-                  fontSize: "0.72rem",
-                }}
+              <div className="flex-1 flex flex-col justify-center py-8">
+                <motion.h1
+                  style={{
+                    fontFamily: FONT.fraunces,
+                    color: heroGame.fg,
+                    fontSize: "clamp(5rem, 15vw, 11.5rem)",
+                    fontWeight: 900,
+                    lineHeight: 0.88,
+                    letterSpacing: "-0.03em",
+                    fontStyle: "italic",
+                  }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+                >
+                  {heroGame.name}
+                </motion.h1>
+                <motion.p
+                  className="mt-5 text-sm"
+                  style={{ color: heroGame.accent, maxWidth: "320px", lineHeight: 1.65 }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.25, duration: 0.4 }}
+                >
+                  {heroGame.tagline}
+                </motion.p>
+              </div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.35, duration: 0.4 }}
               >
-                <Share2 size={12} /> Share result
-              </button>
-            ) : (
-              <button
-                className="flex items-center gap-3 px-5 py-2.5 text-sm font-semibold transition-all duration-200 group-hover:gap-4"
-                style={{
-                  backgroundColor: featured.fg,
-                  color: featured.bg,
-                  fontFamily: FONT.sans,
-                }}
-              >
-                Play today <ArrowRight size={14} />
-              </button>
-            )}
-          </motion.div>
-        </div>
-      </motion.section>
+                <button
+                  className="flex items-center gap-3 px-5 py-2.5 text-sm font-semibold transition-all duration-200 group-hover:gap-4"
+                  style={{
+                    backgroundColor: heroGame.fg,
+                    color: heroGame.bg,
+                    fontFamily: FONT.sans,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Continue <ArrowRight size={14} />
+                </button>
+              </motion.div>
+            </div>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
 
       <motion.main
         className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16"
@@ -417,7 +574,7 @@ export function DailiesApp() {
           </p>
         </div>
 
-        <div className="flex items-baseline justify-between mb-5">
+        <div className="flex items-baseline justify-between mb-2">
           <h2
             style={{
               fontFamily: FONT.fraunces,
@@ -430,13 +587,9 @@ export function DailiesApp() {
           >
             Today&apos;s Lineup
           </h2>
-          <span
-            className="text-xs"
-            style={{ fontFamily: FONT.mono, color: "#8A7A68" }}
-          >
-            {visiblePlayed} / {VISIBLE_COUNT} played
-          </span>
         </div>
+
+        <LineupProgress played={played} nextGameId={heroGame?.id} />
 
         <div
           className="games-grid w-full"
@@ -453,42 +606,14 @@ export function DailiesApp() {
               key={game.id}
               game={game}
               played={played.has(game.id)}
+              isNext={heroGame?.id === game.id}
+              hasProgress={visiblePlayed > 0}
               result={results[game.id] ?? null}
               onPlay={() => setActive(game.id)}
               onShare={(e) => share(game.id, e)}
             />
           ))}
         </div>
-
-        {allPlayed && (
-          <motion.div
-            className="mt-2 flex items-center justify-between px-6 py-5"
-            style={{ backgroundColor: "#18120E", color: "#F0EBE1" }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div>
-              <p
-                className="text-xs tracking-widest mb-1"
-                style={{ fontFamily: FONT.mono, color: "rgba(240,235,225,0.4)" }}
-              >
-                ALL DONE FOR TODAY
-              </p>
-              <p className="text-sm">
-                New puzzles in{" "}
-                <span style={{ fontFamily: FONT.mono }}>{countdown}</span>
-              </p>
-            </div>
-            <div
-              className="flex items-center gap-2"
-              style={{ fontFamily: FONT.mono, fontSize: "0.82rem" }}
-            >
-              <Flame size={13} style={{ color: "#C84820" }} />
-              <span>{streak + 1} tomorrow</span>
-            </div>
-          </motion.div>
-        )}
       </motion.main>
 
       <footer className="border-t border-border">

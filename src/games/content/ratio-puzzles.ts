@@ -1,4 +1,5 @@
 import { getDayIndex, getTodayKey } from "@/lib/daily";
+import { getOverridesForDate, pickById } from "@/lib/daily-content";
 
 export interface RatioItem {
   label: string;
@@ -109,7 +110,8 @@ export const RATIO_PUZZLES: RatioPuzzle[] = [
 export { getTodayKey };
 
 export function getRatioPuzzleForDate(date = getTodayKey()): RatioPuzzle {
-  return RATIO_PUZZLES[getDayIndex(date) % RATIO_PUZZLES.length];
+  const { ratio } = getOverridesForDate(date);
+  return pickById(RATIO_PUZZLES, date, ratio);
 }
 
 export function getRatioPuzzleNumber(date = getTodayKey()): number {

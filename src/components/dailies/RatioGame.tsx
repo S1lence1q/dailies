@@ -1,13 +1,14 @@
 "use client";
 
 import { FONT } from "@/lib/typography";
-import { useState, useCallback, useMemo } from "react";
-import { Share2, ChevronUp, ChevronDown } from "lucide-react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { audioFX } from "@/lib/audio-fx";
 import type { GamePlayerProps } from "@/games/types";
-import { getRatioPuzzleForDate, getTodayKey } from "@/games/content/ratio-puzzles";
+import { getRatioPuzzleForDate, getTodayKey, RATIO_PUZZLES } from "@/games/content/ratio-puzzles";
+import { GameCompleteActions } from "./GameCompleteActions";
 
 const FG = "#F4E0D5";
 const ACCENT = "#F0987A";
@@ -27,10 +28,22 @@ function buildShareText(correct: number, total: number, streak: number): string 
   return `dailies — RATIO ${correct}/${total}\n\n${blocks}\n\n🔥 ${streak} day streak\ndailies.xyz`;
 }
 
-export function RatioGame({ onComplete, streak }: GamePlayerProps) {
-  const puzzle = useMemo(() => getRatioPuzzleForDate(), []);
+export function RatioGame({ onComplete, streak, played, onPlayNext, onBackToLineup }: GamePlayerProps) {
+  const [puzzle, setPuzzle] = useState(() => getRatioPuzzleForDate());
   const totalRounds = puzzle.items.length - 1;
   const storageKey = `dailies_ratio_${getTodayKey()}`;
+
+  useEffect(() => {
+    fetch(`/api/daily/schedule?date=${getTodayKey()}`)
+      .then((r) => r.json())
+      .then((d: { ratioId?: number }) => {
+        if (d.ratioId) {
+          const match = RATIO_PUZZLES.find((p) => p.id === d.ratioId);
+          if (match) setPuzzle(match);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const loadSaved = (): SavedGame => {
     try {
@@ -71,7 +84,7 @@ export function RatioGame({ onComplete, streak }: GamePlayerProps) {
           ? "Perfect run"
           : "Nice streak"
         : "One wrong — close";
-      onComplete({ label, sub });
+      onComplete({ label, sub, cover: { kind: "ratio", correct: finalCorrect, total: totalRounds } });
     },
     [onComplete, totalRounds],
   );
@@ -321,30 +334,22 @@ export function RatioGame({ onComplete, streak }: GamePlayerProps) {
               fontStyle: "italic",
               fontSize: "1.2rem",
               color: won ? CORRECT : FG,
+              margin: 0,
             }}
           >
             {won ? "Perfect run!" : `${correct} correct — one wrong`}
           </p>
-          <button
-            onClick={share}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 22px",
-              backgroundColor: FG,
-              color: "#B84028",
-              border: "none",
-              borderRadius: "2px",
-              fontFamily: FONT.mono,
-              fontSize: "0.72rem",
-              cursor: "pointer",
-              letterSpacing: "0.06em",
-            }}
-          >
-            <Share2 size={12} />
-            Share result
-          </button>
+          <GameCompleteActions
+            gameId="ratio"
+            played={played}
+            fg={FG}
+            accent={ACCENT}
+            shareBg={FG}
+            shareFg="#B84028"
+            onShare={share}
+            onPlayNext={onPlayNext}
+            onBackToLineup={onBackToLineup}
+          />
         </div>
       ) : (
         <div style={{ display: "flex", gap: "8px" }}>

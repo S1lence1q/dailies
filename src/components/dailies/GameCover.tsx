@@ -1,16 +1,77 @@
 "use client";
 
 import { FONT } from "@/lib/typography";
-import { ArrowRight, Share2, Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import type { GameDefinition, GameResult } from "@/games/types";
 import { getCoverHint, getCoverLabel } from "@/games/registry";
+import { CoverResultVisual } from "./CoverResult";
 
 export interface CoverProps {
   game: GameDefinition;
   played: boolean;
+  isNext?: boolean;
+  hasProgress?: boolean;
   result: GameResult | null;
   onPlay: () => void;
   onShare: (e: React.MouseEvent) => void;
+}
+
+function coverFilter(played: boolean, isNext: boolean, hasProgress: boolean): string | undefined {
+  if (played) return "brightness(0.88)";
+  if (isNext || !hasProgress) return undefined;
+  return "brightness(0.92)";
+}
+
+function CoverTopLabel({ fg, children }: { fg: string; children: string }) {
+  return (
+    <span
+      style={{
+        fontFamily: FONT.mono,
+        fontSize: "0.68rem",
+        color: fg,
+        opacity: 0.32,
+        letterSpacing: "0.1em",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function CoverBottomHint({ fg, children }: { fg: string; children: string }) {
+  return (
+    <span
+      style={{
+        fontFamily: FONT.mono,
+        fontSize: "0.68rem",
+        color: fg,
+        opacity: 0.32,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function CoverHeader({
+  fg,
+  label,
+  played,
+  badgeRing,
+  badgeCheck,
+}: {
+  fg: string;
+  label: string;
+  played: boolean;
+  badgeRing: string;
+  badgeCheck: string;
+}) {
+  return (
+    <div className="flex items-start justify-between">
+      <CoverTopLabel fg={fg}>{label}</CoverTopLabel>
+      {played && <PlayedBadge ring={badgeRing} check={badgeCheck} />}
+    </div>
+  );
 }
 
 function PlayedBadge({ ring, check }: { ring: string; check: string }) {
@@ -24,37 +85,27 @@ function PlayedBadge({ ring, check }: { ring: string; check: string }) {
   );
 }
 
-function ResultStrip({
+function CoverPlayedResult({
+  gameId,
   result,
   fg,
+  accent,
   onShare,
 }: {
+  gameId: GameDefinition["id"];
   result: GameResult;
   fg: string;
+  accent: string;
   onShare: (e: React.MouseEvent) => void;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <span
-        style={{
-          fontFamily: FONT.mono,
-          fontSize: "0.68rem",
-          color: fg,
-          opacity: 0.6,
-        }}
-      >
-        {result.label}
-        <span style={{ opacity: 0.5 }}> · {result.sub}</span>
-      </span>
-      <button
-        onClick={onShare}
-        className="opacity-0 group-hover:opacity-50 hover:!opacity-100 transition-opacity duration-150 p-0.5"
-        style={{ color: fg }}
-        aria-label="Share result"
-      >
-        <Share2 size={11} />
-      </button>
-    </div>
+    <CoverResultVisual
+      gameId={gameId}
+      result={result}
+      fg={fg}
+      accent={accent}
+      onShare={onShare}
+    />
   );
 }
 
@@ -62,12 +113,21 @@ const PITCH_BARS = [
   22, 48, 35, 72, 58, 42, 85, 38, 62, 48, 78, 52, 32, 68, 44, 30, 55, 40, 65, 28,
 ];
 
-export function GameCover({ game, played, result, onPlay, onShare }: CoverProps) {
-  const { id, bg, fg, accent, gridArea, name, tagline } = game;
+export function GameCover({
+  game,
+  played,
+  isNext = false,
+  hasProgress = false,
+  result,
+  onPlay,
+  onShare,
+}: CoverProps) {
+  const { id, bg, fg, accent, gridArea, name } = game;
   const coverLabel = getCoverLabel(game);
   const coverHint = getCoverHint(game);
-  const filter = played ? "brightness(0.88)" : undefined;
+  const filter = coverFilter(played, isNext, hasProgress);
   const areaClass = id === "verbum" ? "cover-verbum" : id === "context" ? "cover-context" : undefined;
+  const pitchBarOpacity = played ? 0.3 : 0.7;
 
   if (id === "verbum") {
     return (
@@ -77,21 +137,16 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
         onClick={onPlay}
       >
         <div className="absolute inset-0 flex flex-col p-5 md:p-7">
-          <div className="flex items-start justify-between">
-            <span
-              style={{
-                fontFamily: FONT.mono,
-                fontSize: "0.68rem",
-                color: accent,
-                letterSpacing: "0.1em",
-              }}
-            >
-              {coverLabel}
-            </span>
-            {played && <PlayedBadge ring={accent} check={bg} />}
-          </div>
+          <CoverHeader
+            fg={fg}
+            label={coverLabel}
+            played={played}
+            badgeRing={accent}
+            badgeCheck={bg}
+          />
           <div className="flex-1 flex flex-col justify-center">
             <h3
+              className="cover-verbum-title"
               style={{
                 fontFamily: FONT.fraunces,
                 color: fg,
@@ -109,18 +164,10 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
           </div>
           <div className="flex flex-col gap-1.5">
             {played && result ? (
-              <ResultStrip result={result} fg={fg} onShare={onShare} />
+              <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
             ) : (
               <div className="flex items-center justify-between">
-                <span
-                  style={{
-                    fontFamily: FONT.mono,
-                    fontSize: "0.68rem",
-                    color: "rgba(213,234,216,0.28)",
-                  }}
-                >
-                  {coverHint}
-                </span>
+                <CoverBottomHint fg={fg}>{coverHint ?? ""}</CoverBottomHint>
                 <ArrowRight
                   size={13}
                   style={{ color: accent }}
@@ -142,30 +189,29 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
         onClick={onPlay}
       >
         <div className="absolute inset-0 flex flex-col p-5 md:p-6">
-          <div className="flex items-start justify-between">
-            <span
-              style={{
-                fontFamily: FONT.mono,
-                fontSize: "0.68rem",
-                color: accent,
-                letterSpacing: "0.1em",
-              }}
-            >
-              {coverLabel}
-            </span>
-            {played && <PlayedBadge ring={accent} check={bg} />}
-          </div>
+          <CoverHeader
+            fg={fg}
+            label={coverLabel}
+            played={played}
+            badgeRing={accent}
+            badgeCheck={bg}
+          />
           <div className="flex-1 flex flex-col justify-center">
-            <div className="flex items-end gap-px mb-4" style={{ height: "32px" }}>
+            <div
+              className={`cover-pitch-bars flex items-end gap-px mb-4${played ? "" : " cover-pitch-bars--live"}`}
+              style={{ height: "32px" }}
+            >
               {PITCH_BARS.map((h, i) => (
                 <div
                   key={i}
+                  className="cover-pitch-bar"
                   style={{
                     width: "3px",
                     height: `${h}%`,
                     backgroundColor: accent,
-                    opacity: played ? 0.3 : 0.7,
+                    opacity: pitchBarOpacity,
                     flexShrink: 0,
+                    transition: "opacity 0.2s ease",
                   }}
                 />
               ))}
@@ -184,12 +230,10 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
           </div>
           <div className="flex flex-col gap-1.5">
             {played && result ? (
-              <ResultStrip result={result} fg={fg} onShare={onShare} />
+              <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
             ) : (
               <div className="flex items-center justify-between">
-                <span style={{ fontFamily: FONT.mono, fontSize: "0.68rem", color: accent }}>
-                  {coverHint}
-                </span>
+                <CoverBottomHint fg={fg}>{coverHint ?? ""}</CoverBottomHint>
                 <ArrowRight
                   size={13}
                   style={{ color: accent }}
@@ -211,22 +255,16 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
         onClick={onPlay}
       >
         <div className="absolute inset-0 flex flex-col p-5 md:p-6">
-          <div className="flex items-start justify-between">
-            <span
-              style={{
-                fontFamily: FONT.mono,
-                fontSize: "0.68rem",
-                color: accent,
-                letterSpacing: "0.1em",
-              }}
-            >
-              {coverLabel}
-            </span>
-            {played && <PlayedBadge ring={fg} check={bg} />}
-          </div>
+          <CoverHeader
+            fg={fg}
+            label={coverLabel}
+            played={played}
+            badgeRing={fg}
+            badgeCheck={bg}
+          />
           <div className="flex-1 relative">
             <span
-              className="absolute select-none pointer-events-none leading-none"
+              className="cover-ratio-gt absolute select-none pointer-events-none leading-none"
               style={{
                 fontFamily: FONT.fraunces,
                 fontSize: "7rem",
@@ -234,6 +272,7 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
                 color: "rgba(244,224,213,0.09)",
                 right: "-4px",
                 bottom: "0",
+                transition: "color 0.2s ease",
               }}
             >
               &gt;
@@ -255,11 +294,9 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
             </h3>
             <div className="mt-1.5">
               {played && result ? (
-                <ResultStrip result={result} fg={fg} onShare={onShare} />
+                <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
               ) : (
-                <p style={{ fontFamily: FONT.mono, fontSize: "0.68rem", color: accent }}>
-                  {coverHint}
-                </p>
+                <CoverBottomHint fg={fg}>{coverHint ?? ""}</CoverBottomHint>
               )}
             </div>
           </div>
@@ -275,48 +312,76 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
         style={{ gridArea, backgroundColor: bg, minHeight: "156px", filter }}
         onClick={onPlay}
       >
-        <div className="absolute inset-0 flex flex-col justify-between p-5 md:p-7">
-          <div className="flex items-start justify-between gap-6">
-            <h3
+        <div className="absolute inset-0 flex flex-col p-5 md:p-6">
+          <CoverHeader
+            fg={fg}
+            label={coverLabel}
+            played={played}
+            badgeRing={accent}
+            badgeCheck={bg}
+          />
+          <div className="flex-1 relative">
+            <div
+              className="absolute select-none pointer-events-none"
               style={{
-                fontFamily: FONT.fraunces,
-                color: fg,
-                fontSize: "clamp(2rem, 5vw, 4.2rem)",
-                fontWeight: 700,
-                lineHeight: 0.9,
-                letterSpacing: "-0.03em",
-                fontStyle: "italic",
-                flex: 1,
+                right: "0",
+                bottom: "0",
+                display: "flex",
+                flexDirection: "column",
+                gap: "6px",
+                width: "42%",
+                maxWidth: "200px",
+                opacity: played ? 0.12 : 0.22,
               }}
             >
-              {name}
-            </h3>
-            <div className="flex items-center gap-3 flex-shrink-0 pt-1">
-              <span
-                className="text-xs hidden sm:block"
-                style={{ color: accent, fontFamily: FONT.mono }}
-              >
-                {coverLabel}
-              </span>
-              {played && <PlayedBadge ring={accent} check={bg} />}
+              {[72, 48, 28].map((w) => (
+                <div
+                  key={w}
+                  style={{
+                    height: "6px",
+                    width: `${w}%`,
+                    borderRadius: "3px",
+                    backgroundColor: accent,
+                  }}
+                />
+              ))}
             </div>
           </div>
-          <div className="w-full" style={{ height: "1px", backgroundColor: `${accent}33` }} />
-          {played && result ? (
-            <ResultStrip result={result} fg={fg} onShare={onShare} />
-          ) : (
-            <p
-              className="text-sm"
-              style={{
-                color: accent,
-                fontFamily: FONT.sans,
-                maxWidth: "480px",
-                lineHeight: 1.6,
-              }}
-            >
-              {tagline}
-            </p>
-          )}
+          <div>
+            <div className="cover-context-title-wrap inline-block">
+              <h3
+                style={{
+                  fontFamily: FONT.fraunces,
+                  fontWeight: 700,
+                  fontStyle: "italic",
+                  color: fg,
+                  fontSize: "clamp(1.8rem, 3vw, 2.8rem)",
+                  lineHeight: 1,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                {name}
+              </h3>
+              <span
+                className="cover-context-line"
+                style={{ backgroundColor: accent }}
+              />
+            </div>
+            <div className="mt-1.5">
+              {played && result ? (
+                <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
+              ) : (
+                <div className="flex items-center justify-between">
+                  <CoverBottomHint fg={fg}>{coverHint ?? ""}</CoverBottomHint>
+                  <ArrowRight
+                    size={13}
+                    style={{ color: accent }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -374,7 +439,7 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
           </div>
           {played && result && (
             <div className="mt-2">
-              <ResultStrip result={result} fg={fg} onShare={onShare} />
+              <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
             </div>
           )}
         </div>
@@ -440,7 +505,7 @@ export function GameCover({ game, played, result, onPlay, onShare }: CoverProps)
           </div>
           <div>
             {played && result ? (
-              <ResultStrip result={result} fg={fg} onShare={onShare} />
+              <CoverPlayedResult gameId={id} result={result} fg={fg} accent={accent} onShare={onShare} />
             ) : (
               <span
                 style={{

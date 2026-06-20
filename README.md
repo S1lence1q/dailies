@@ -6,12 +6,12 @@ Daily mini games — ported from [Figma Make](https://www.figma.com/make/zH8ULDP
 
 | Spil | Status | Beskrivelse |
 |------|--------|-------------|
-| **VERBUM** | Spilbar | Wordle-style ordspil |
-| **PITCH** | Spilbar | Heardle-style musikgæt (mock lyd) |
-| ECHO | Kommer snart | Trivia — seks ledetråde |
-| RATIO | Kommer snart | Højere eller lavere |
-| GLYPH | Kommer snart | Mønster-genkendelse |
-| CONTEXT | Kommer snart | Ord i kontekst |
+| **VERBUM** | ✅ Spilbar | Wordle-style ordspil |
+| **PITCH** | ✅ Spilbar | Heardle-style musikgæt med rigtige iTunes preview-klip og lydeffekter |
+| **RATIO** | ✅ Spilbar | Højere eller lavere sammenligninger af skøre værdier |
+| **CONTEXT** | ✅ Spilbar | Gæt det hemmelige ord baseret på semantisk nærhed (GloVe) |
+| ECHO | 🔒 Kommer snart | Trivia — seks ledetråde |
+| GLYPH | 🔒 Kommer snart | Mønster-genkendelse |
 
 ## Kom i gang
 
@@ -63,6 +63,7 @@ SUPABASE_JWKS_URL            # JWT-verifikation for auth: 'user'
 src/
 ├── app/              # Next.js routes (homepage, login, auth callback)
 ├── components/
+├── components/admin/ # Adminpanel til at fastlåse daglige spil
 │   ├── dailies/      # Spil + homepage fra Figma
 │   └── auth/         # Login-knap
 └── lib/supabase/     # Supabase-klienter
@@ -71,6 +72,6 @@ src/
 ## Næste skridt
 
 - [ ] Synce streaks og stats til Supabase
-- [ ] Byg ECHO, RATIO, GLYPH, CONTEXT
-- [ ] Tilføj rigtig lyd til PITCH
+- [ ] Byg ECHO og GLYPH færdig
 - [ ] React Native / Expo mobilapp
+

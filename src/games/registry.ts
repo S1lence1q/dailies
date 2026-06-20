@@ -49,15 +49,13 @@ export const GAMES: GameDefinition[] = [
     name: "CONTEXT",
     number: 631,
     genre: "Language",
-    status: "soon",
+    status: "live",
     visible: true,
     tagline: "Navigate meaning by proximity. Find the word hidden inside language itself.",
-    comingSoonTagline:
-      "Every word you guess reveals how close you are. Find the hidden word by navigating meaning.",
     gridArea: "context",
-    bg: "#1E1228",
-    fg: "#CDBDE0",
-    accent: "#6A4A88",
+    bg: "#0A0A0A",
+    fg: "#F5F5F5",
+    accent: "#FF5500",
   },
   {
     id: "echo",
@@ -100,6 +98,20 @@ export function getGame(id: string): GameDefinition | undefined {
   return GAMES.find((g) => g.id === id);
 }
 
+/** First unplayed live game in lineup order */
+export function getFirstUnplayedGame(played: Set<string>): GameDefinition | null {
+  return VISIBLE_GAMES.find((g) => g.status === "live" && !played.has(g.id)) ?? null;
+}
+
+/** Next live game in lineup order the player hasn't finished today */
+export function getNextUnplayedGame(
+  currentId: GameId,
+  played: Set<string>,
+): GameDefinition | null {
+  const done = new Set([...played, currentId]);
+  return getFirstUnplayedGame(done);
+}
+
 /** Daily puzzle number — increments from each game's launch base */
 export function getGameNumber(game: GameDefinition | GameId): number {
   const def = typeof game === "string" ? getGame(game) : game;
@@ -108,29 +120,19 @@ export function getGameNumber(game: GameDefinition | GameId): number {
 }
 
 export function getCoverLabel(game: GameDefinition): string {
-  const n = getGameNumber(game);
-  switch (game.id) {
-    case "verbum":
-    case "ratio":
-      return `NO. ${n}`;
-    case "pitch":
-      return "MUSIC";
-    case "context":
-      return `LANGUAGE · NO. ${n}`;
-    default:
-      return game.coverLabel ?? game.name;
-  }
+  return `NO. ${getGameNumber(game)}`;
 }
 
 export function getCoverHint(game: GameDefinition): string | undefined {
-  const n = getGameNumber(game);
   switch (game.id) {
     case "verbum":
       return "WORD · ~3 MIN";
     case "pitch":
-      return `NO. ${n}`;
+      return "Music · Guess the song";
     case "ratio":
       return "Compare · Higher or lower";
+    case "context":
+      return "Proximity · Find the word";
     default:
       return game.coverHint;
   }

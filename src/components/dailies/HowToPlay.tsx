@@ -43,35 +43,62 @@ export const GAME_RULES: Record<
     ],
     tip: "Don't trust your gut on absurd comparisons. Read the number, then decide.",
   },
+  context: {
+    steps: [
+      "Guess any word to probe today's hidden answer.",
+      "Each guess gets a rank — lower means closer in meaning.",
+      "Your guesses sort by rank so your best leads stay on top.",
+      "Tap the lightbulb for a closer word — you'll confirm before it's submitted.",
+      "Stuck? Use the ··· menu to give up and see the answer.",
+    ],
+    tip: "Start broad (season, weather, place) then narrow down from your warmest ranks.",
+  },
 };
 
 interface HowToPlayProps {
   gameId: string;
   fg: string;
   accent: string;
+  bg: string;
+  /** Full panel (first visit) vs overlay (? button) */
+  variant?: "screen" | "overlay";
   onClose: () => void;
 }
 
-export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
+export function HowToPlay({
+  gameId,
+  fg,
+  accent,
+  bg,
+  variant = "screen",
+  onClose,
+}: HowToPlayProps) {
   const rules = GAME_RULES[gameId];
   if (!rules) return null;
 
+  const isOverlay = variant === "overlay";
+
   return (
     <motion.div
-      className="absolute inset-0 z-10 flex items-center justify-center p-6"
-      style={{ backgroundColor: "rgba(0,0,0,0.82)" }}
+      className={isOverlay ? "absolute inset-0 z-20 flex flex-col" : "flex flex-1 flex-col"}
+      style={{ backgroundColor: bg }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
-      onClick={onClose}
+      transition={{ duration: 0.18 }}
+      onClick={isOverlay ? onClose : undefined}
     >
-      <motion.div
-        style={{ width: "100%", maxWidth: "340px" }}
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -6 }}
-        transition={{ delay: 0.04, duration: 0.2 }}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: "32px 28px",
+          maxWidth: "400px",
+          margin: "0 auto",
+          width: "100%",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -79,7 +106,7 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "24px",
+            marginBottom: "28px",
           }}
         >
           <span
@@ -92,23 +119,24 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
           >
             HOW TO PLAY
           </span>
-          <button
-            onClick={onClose}
-            style={{
-              color: fg,
-              opacity: 0.4,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "2px",
-              display: "flex",
-              transition: "opacity 0.15s",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.4")}
-          >
-            <X size={15} />
-          </button>
+          {isOverlay && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                color: fg,
+                opacity: 0.4,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "2px",
+                display: "flex",
+              }}
+              aria-label="Close"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
 
         <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -118,7 +146,7 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
               style={{
                 display: "flex",
                 gap: "12px",
-                marginBottom: i < rules.steps.length - 1 ? "12px" : "0",
+                marginBottom: i < rules.steps.length - 1 ? "14px" : "0",
               }}
             >
               <span
@@ -128,8 +156,8 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
                   color: accent,
                   width: "14px",
                   flexShrink: 0,
-                  paddingTop: "2px",
-                  opacity: 0.7,
+                  paddingTop: "3px",
+                  opacity: 0.75,
                 }}
               >
                 {i + 1}.
@@ -137,10 +165,10 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
               <span
                 style={{
                   fontFamily: FONT.sans,
-                  fontSize: "0.88rem",
+                  fontSize: "0.92rem",
                   color: fg,
                   lineHeight: 1.55,
-                  opacity: 0.88,
+                  opacity: 0.9,
                 }}
               >
                 {step}
@@ -152,12 +180,12 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
         {rules.legend && (
           <div
             style={{
-              marginTop: "20px",
-              paddingTop: "18px",
-              borderTop: `1px solid ${fg}14`,
+              marginTop: "22px",
+              paddingTop: "20px",
+              borderTop: `1px solid ${accent}28`,
               display: "flex",
               flexDirection: "column",
-              gap: "8px",
+              gap: "10px",
             }}
           >
             {rules.legend.map((item, i) => (
@@ -189,9 +217,9 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
 
         <div
           style={{
-            marginTop: "20px",
-            paddingTop: "16px",
-            borderTop: `1px solid ${fg}14`,
+            marginTop: "24px",
+            paddingTop: "20px",
+            borderTop: `1px solid ${accent}28`,
           }}
         >
           <p
@@ -200,15 +228,32 @@ export function HowToPlay({ gameId, fg, accent, onClose }: HowToPlayProps) {
               fontSize: "0.82rem",
               fontStyle: "italic",
               color: fg,
-              opacity: 0.42,
+              opacity: 0.45,
               lineHeight: 1.6,
-              margin: 0,
+              margin: "0 0 20px",
             }}
           >
             {rules.tip}
           </p>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: "100%",
+              padding: "12px 0",
+              border: `1px solid ${accent}`,
+              background: `${accent}18`,
+              fontFamily: FONT.mono,
+              fontSize: "0.65rem",
+              color: fg,
+              letterSpacing: "0.14em",
+              cursor: "pointer",
+            }}
+          >
+            GOT IT
+          </button>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   );
 }
