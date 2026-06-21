@@ -460,7 +460,7 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
 
   const done         = phase === "done";
   const secs         = REVEAL_SECS[Math.min(round, MAX_ROUNDS - 1)];
-  const canSubmit    = Boolean(input.trim() && hasPlayed);
+  const canSubmit    = Boolean(input.trim());
   const skipBonus    = round < MAX_ROUNDS - 1 ? REVEAL_SECS[round + 1] - REVEAL_SECS[round] : null;
 
   const stopAudio = useCallback(() => {
@@ -662,13 +662,11 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
   }, [canSubmit, input, track, resolve]);
 
   const handleSkip = useCallback(() => {
-    if (!hasPlayed) return;
     audioFX.playClick();
     resolve("", "skipped", true);
-  }, [hasPlayed, resolve]);
+  }, [resolve]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!hasPlayed) return;
     const has = showSuggest && suggestions.length > 0;
     if (e.key === "ArrowDown" && has) { e.preventDefault(); setHlIndex((i) => Math.min(i + 1, suggestions.length - 1)); return; }
     if (e.key === "ArrowUp"   && has) { e.preventDefault(); setHlIndex((i) => Math.max(i - 1, 0)); return; }
@@ -943,36 +941,34 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
                   }}
                   onFocus={() => { if (input.length >= 2) setShowSuggest(true); }}
                   onKeyDown={handleKeyDown}
-                  placeholder={hasPlayed ? "Search for a song or artist..." : "Play the clip first"}
-                  disabled={!hasPlayed}
+                  placeholder="Search for a song or artist..."
+                  disabled={false}
                   autoComplete="off"
                   role="combobox"
                   aria-expanded={showSuggest && suggestions.length > 0}
                   style={{
                     width: "100%",
                     padding: "16px 18px",
-                    backgroundColor: hasPlayed ? "rgba(74,110,168,0.12)" : "rgba(74,110,168,0.04)",
-                    border: `1px solid ${hasPlayed ? "rgba(74,110,168,0.35)" : "rgba(74,110,168,0.12)"}`,
+                    backgroundColor: "rgba(74,110,168,0.12)",
+                    border: "1px solid rgba(74,110,168,0.35)",
                     borderRadius: 2,
                     fontFamily: FONT.sans,
                     fontSize: "1.05rem",
                     color: FG,
                     outline: "none",
                     boxSizing: "border-box",
-                    cursor: hasPlayed ? "text" : "default",
+                    cursor: "text",
                     transition: "border-color 0.2s, background-color 0.2s",
                   }}
                   onFocusCapture={(e) => {
-                    if (hasPlayed) e.currentTarget.style.borderColor = "rgba(74,110,168,0.6)";
+                    e.currentTarget.style.borderColor = "rgba(74,110,168,0.6)";
                   }}
                   onBlurCapture={(e) => {
-                    e.currentTarget.style.borderColor = hasPlayed
-                      ? "rgba(74,110,168,0.28)"
-                      : "rgba(74,110,168,0.08)";
+                    e.currentTarget.style.borderColor = "rgba(74,110,168,0.28)";
                   }}
                 />
                 <AnimatePresence>
-                  {hasPlayed && showSuggest && suggestions.length > 0 && (
+                  {showSuggest && suggestions.length > 0 && (
                     <Suggestions
                       items={suggestions}
                       hlIndex={hlIndex}
@@ -999,26 +995,11 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
                 )}
               </div>
 
-              {!hasPlayed && (
-                <p
-                  style={{
-                    fontFamily: FONT.mono,
-                    fontSize: "0.72rem",
-                    color: FG,
-                    letterSpacing: "0.06em",
-                    margin: 0,
-                    opacity: 0.45,
-                  }}
-                >
-                  Play the clip to unlock search
-                </p>
-              )}
-
               <div
                 style={{
                   display: "flex",
                   height: 52,
-                  border: `1px solid ${hasPlayed ? "rgba(74,110,168,0.35)" : "rgba(74,110,168,0.12)"}`,
+                  border: "1px solid rgba(74,110,168,0.35)",
                   borderRadius: 2,
                   overflow: "hidden",
                   transition: "border-color 0.2s",
@@ -1027,16 +1008,16 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
                 <button
                   type="button"
                   onClick={handleSkip}
-                  disabled={!hasPlayed}
+                  disabled={false}
                   style={{
                     flex: 1,
                     backgroundColor: "transparent",
                     border: "none",
-                    borderRight: `1px solid ${hasPlayed ? "rgba(74,110,168,0.3)" : "rgba(74,110,168,0.1)"}`,
+                    borderRight: "1px solid rgba(74,110,168,0.3)",
                     fontFamily: FONT.mono,
                     fontSize: "0.78rem",
-                    color: hasPlayed ? FG : "rgba(181,200,226,0.25)",
-                    cursor: hasPlayed ? "pointer" : "default",
+                    color: FG,
+                    cursor: "pointer",
                     letterSpacing: "0.08em",
                     transition: "background-color 0.15s, color 0.15s",
                     display: "flex",
@@ -1044,11 +1025,11 @@ export function PitchGame({ onComplete, streak, played, onPlayNext, onBackToLine
                     justifyContent: "center",
                     gap: 5,
                   }}
-                  onMouseEnter={(e) => { if (hasPlayed) e.currentTarget.style.backgroundColor = "rgba(74,110,168,0.08)"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "rgba(74,110,168,0.08)"; }}
                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                 >
                   SKIP
-                  {skipBonus != null && hasPlayed && (
+                  {skipBonus != null && (
                     <span style={{ opacity: 0.45, fontSize: "0.6rem" }}>+{skipBonus}s</span>
                   )}
                 </button>
