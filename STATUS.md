@@ -1,6 +1,6 @@
 # dailies — status & roadmap
 
-Sidst opdateret: **20. juni 2026**
+Sidst opdateret: **29. juni 2026**
 
 Levende dokument over hvad der virker, hvad vi er i gang med, og hvad der mangler. Opdater denne fil når noget skifter status.
 
@@ -26,6 +26,7 @@ Levende dokument over hvad der virker, hvad vi er i gang med, og hvad der mangle
 ## ✅ Færdigt (seneste periode)
 
 ### Spil & UX
+- [x] Oprettet `PROJECT.md` med detaljeret projektbeskrivelse, vision og designfilosofi (undgå AI-slop)
 - [x] CONTEXT spil med semantisk motor (GloVe), API-routes (guess, hint, give-up)
 - [x] CONTEXT UI: mørk baggrund, orange bars, pinned sidste gæt, hint-bekræftelse, give-up menu
 - [x] Ensartede cover-labels (`NO. XXXX`) via `GameCover.tsx`
